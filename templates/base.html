@@ -1,0 +1,40 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Better Tactics</title>
+
+        <link rel="icon" href="/assets_{{base.assets_version}}/images/rustacean-flat-happy.svg"
+            alt="Better Tactics">
+
+        <link rel="stylesheet" type="text/css"
+            href="/assets_{{base.assets_version}}/deps/bulma.min.css" />
+
+        <link rel="stylesheet" type="text/css"
+            href="/assets_{{base.assets_version}}/deps/chessground.base.css" />
+        <link rel="stylesheet" type="text/css"
+            href="/assets_{{base.assets_version}}/deps/chessground.brown.css" />
+        <link rel="stylesheet" type="text/css"
+            href="/assets_{{base.assets_version}}/deps/chessground.cburnett.css" />
+
+        <link rel="stylesheet" type="text/css" href="/assets_{{base.assets_version}}/style.css" />
+
+        <script src="/assets_{{base.assets_version}}/deps/jquery-3.7.1.min.js"></script>
+
+        <!--<script src="/assets_{{base.assets_version}}/deps/chart.umd.js"></script>
+        <script src="/assets_{{base.assets_version}}/deps/moment.js"></script>
+        <script src="/assets_{{base.assets_version}}/deps/chartjs-adapter-moment.js"></script>-->
+    </head>
+    <body data-assets-path="/assets_{{base.assets_version}}">
+        <div class="hero" id="main-container">
+            {% include "header.html" %}
+            <section class="section" id="main-section">
+                <div class="container" id="content">
+                    {% block content %}<p>Placeholder content</p>{% endblock %}
+                </div>
+            </section>
+            {% include "footer.html" %}
+        </div>
+    </body>
+</html>

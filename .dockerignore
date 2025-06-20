@@ -1,0 +1,10 @@
+target
+*.sqlite*
+*.sqlite-journal
+lichess_db_puzzle.csv.zst
+docker-compose.yml
+my.secrets
+my.vars
+backups
+frontend/node_modules
+assets/better-tactics.js*

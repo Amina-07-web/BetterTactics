@@ -1,0 +1,104 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<!-- The main puzzle interface, with the puzzle and other panels in it -->
+<div class="columns" id="puzzle-interface">
+</div>
+
+<script type="module">
+    import { PuzzleUi } from '/assets_{{base.assets_version}}/better-tactics.js';
+
+    // The puzzle mode.
+    const mode = "{{ mode }}";
+    const requested_id = "{{ requested_id }}";
+
+    // The rating variation, i.e. 1.05 means that if the mode is "Random", the requested puzzles
+    // will be rated +-5% of the user's rating.
+    const puzzle_rating_variation_up = {{ tactics_config.puzzle_rating_variation_up }};
+    const puzzle_rating_variation_down = {{ tactics_config.puzzle_rating_variation_down }};
+
+    // Create puzzle ui.
+    let puzzle_ui = new PuzzleUi(document.getElementById("puzzle-interface"), {
+        mode,
+        requested_id,
+        on_review: submit_review,
+        request_data: request_next_puzzle,
+        on_skip: on_skip,
+        board_config: {
+            initial_move_delay: {{ ui_config.initial_move_delay }},
+            subsequent_move_delay: {{ ui_config.subsequent_move_delay }},
+        },
+    });
+    window.puzzle_ui = puzzle_ui;
+
+    // Request the user's stats from the api and return a promise.
+    function request_stats() {
+        return $.ajax(`/api/user/stats`)
+            .catch(function(err) {
+                let error_text = `Failed to get user stats: ${err.responseText}`;
+                console.error(error_text);
+                puzzle_ui.configure({error: error_text});
+            });
+    }
+
+    // Submit a review for the given puzzle and difficulty.
+    function submit_review(card, difficulty) {
+        return $.ajax({
+            type: "POST",
+            url: "/api/tactics/review",
+            data: JSON.stringify({
+                id: card.id,
+                difficulty,
+                review_count: card.review_count,
+            }),
+            contentType: 'application/json; charset=utf-8',
+        });
+    }
+
+    // Request the next puzzle.
+    function request_next_puzzle() {
+        return request_stats()
+            .then(stats => {
+                if (mode == "Review") {
+                    return $.ajax("/api/tactics/review")
+                        .then(data => {
+                            return Promise.resolve(Object.assign(data, { stats }));
+                        });
+                }
+                else if (mode == "Specific") {
+                    return $.ajax(`/api/tactics/by_id/${requested_id}`)
+                        .then(data => {
+                            return Promise.resolve(Object.assign(data, { stats }));
+                        });
+                }
+                else {
+                    // Random in range.
+                    let min_rating = stats.user_rating.rating -
+                        Math.floor(stats.user_rating.rating * puzzle_rating_variation_down);
+                    let max_rating = stats.user_rating.rating +
+                        Math.floor(stats.user_rating.rating * puzzle_rating_variation_up);
+                    puzzle_ui.configure({ rating_range: [min_rating, max_rating] });
+
+                    return $.ajax(`/api/tactics/random/${min_rating}/${max_rating}`)
+                        .then(data => {
+                            return Promise.resolve(Object.assign(data, { stats }));
+                        });
+                }
+            });
+    }
+
+    function on_skip(card, difficulty, update_rating) {
+        return $.ajax({
+            type: "POST",
+            url: "/api/tactics/random/skip",
+            data: JSON.stringify({
+                id: card.id,
+                difficulty,
+                update_rating,
+            }),
+            contentType: 'application/json; charset=utf-8',
+        });
+    }
+</script>
+{% endblock %}

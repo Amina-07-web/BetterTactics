@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="columns" id="stats-columns">
+    <div id="stats-panel"></div>
+    <div id="review-graph-container"></div>
+    <div id="rating-graph-container"></div>
+    <div id="review-score-graph-container"></div>
+</div>
+
+<div>
+    <p style="margin-top: 1rem; text-align: center;">
+        Don't know what's going on? See <a href="/about">About</a>.
+    </p>
+</div>
+
+<script type="module">
+    import {
+        UserStats,
+        ReviewForecastChart,
+        RatingHistoryChart,
+        ReviewScoreChart,
+    } from '/assets_{{base.assets_version}}/better-tactics.js';
+
+    /// The threshold for a user's rating deviation to count their rating as provisional.
+    const RATING_DEVIATION_PROVISIONAL = 100;
+
+    /// The maximum number of rating history data points before the point style is disabled.
+    const RATING_DATA_POINT_CIRCLE_CUTOFF = 20;
+
+    /// The rating range for the review score histogram.
+    const REVIEW_SCORE_HISTOGRAM_BUCKET_SIZE = 50;
+
+    let user_stats = new UserStats(document.getElementById("stats-panel"), {
+        request_data: () => $.ajax(`/api/user/stats`)
+    });
+    let review_forecast = new ReviewForecastChart(document.getElementById("review-graph-container"), {
+        request_data: () => $.ajax(`/api/user/review_forecast/365`)
+            .then(function(data) {
+                return Promise.resolve({
+                    datasets: [{
+                            label: "Reviews due",
+                            backgroundColor: "#416c86",
+                            data: data.map(v => { return { day: v[0], reviews: v[1] }; }),
+                    }],
+                    labels: data.map(v => `${v[0]}d`),
+                });
+            }),
+    });
+    let rating_history = new RatingHistoryChart(document.getElementById("rating-graph-container"), {
+        request_data: () => $.ajax("/api/user/rating_history")
+            .then(function(data) {
+                return Promise.resolve({
+                    datasets: [{
+                        label: "All themes",
+                        data: data.map(v => { return { x: v[0], y: v[1] } }),
+                        pointStyle: data.length > RATING_DATA_POINT_CIRCLE_CUTOFF ? false : 'circle',
+                        tension: 0.01,
+                        borderColor: "#416c86",
+                    }]
+                });
+            })
+    });
+    let review_score_chart = new ReviewScoreChart(document.getElementById("review-score-graph-container"), {
+        request_data: () => $.ajax(`/api/user/review_score_histogram/${REVIEW_SCORE_HISTOGRAM_BUCKET_SIZE}`)
+            .then((data) => {
+                // Add labels and sum totals.
+                let totals = {};
+
+                data.map(record => {
+                    // Add label.
+                    record.label = `${record.puzzle_rating_min}-${record.puzzle_rating_max}`;
+
+                    // Add totals.
+                    if (!totals[record.label])
+                        totals[record.label] = record.review_count;
+                    else
+                        totals[record.label] += record.review_count;
+                });
+
+                // Add percentages.
+                data.map(record => {
+                    record.review_percentage = 100 * record.review_count / totals[record.label];
+                });
+
+                return Promise.resolve({
+                    datasets: [
+                        {
+                            label: 'Again',
+                            backgroundColor: "#416c86",
+                            data: data.filter(v => v.difficulty == 0),
+                            maxBarThickness: 100,
+                        },
+                        {
+                            label: 'Hard',
+                            backgroundColor: '#B7881A',
+                            data: data.filter(v => v.difficulty == 1),
+                            maxBarThickness: 100,
+                        },
+                        {
+                            label: 'Good',
+                            backgroundColor: '#2E680D',
+                            data: data.filter(v => v.difficulty == 2),
+                            maxBarThickness: 100,
+                        },
+                        {
+                            label: 'Easy',
+                            backgroundColor: '#269326',
+                            data: data.filter(v => v.difficulty == 3),
+                            maxBarThickness: 100,
+                        },
+                    ],
+                    labels: [...new Set(data.map(v => v.label))],
+                });
+            })
+    });
+</script>
+{% endblock %}
